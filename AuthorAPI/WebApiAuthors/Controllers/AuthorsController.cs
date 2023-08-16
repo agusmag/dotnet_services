@@ -20,43 +20,42 @@ namespace WebApiAuthors.Controllers
         }
 
 		[HttpGet]
-		public async Task<ActionResult<List<Author>>> Get()
+		public async Task<ActionResult<List<AuthorDTO>>> Get()
 		{
-			return await context.Authors.ToListAsync();
+			var authors = await context.Authors.ToListAsync();
+			return mapper.Map<List<AuthorDTO>>(authors);
 		}
 
-        [HttpGet("{id:int}")] // If the :int restriction is not matched, returns 404
+        [HttpGet("{id:int}", Name = "getAuthor")] // If the :int restriction is not matched, returns 404
 							  // There is no :string restriction
 							  // each variable between {var} is another parameter in the method
 							  // {var?} set the var parameter as optional (null if it's not provided)
 							  // {var=foo} set the default value of var to "foo"
-        public async Task<ActionResult<Author>> Get(int id)
+        public async Task<ActionResult<AuthorDTOWithBooks>> Get(int id)
         {
-            var author = await context.Authors.FirstOrDefaultAsync(x => x.Id == id);
+            var author = await context.Authors
+				.Include(x => x.AuthorsBooks)
+				.ThenInclude(x => x.Book)
+				.FirstOrDefaultAsync(x => x.Id == id);
 
 			if (author == null)
 			{
 				return NotFound();
 			}
 
-			return Ok(author);
+			return Ok(mapper.Map<AuthorDTOWithBooks>(author));
 		}
 
 		[HttpGet("{name}")]
-        public async Task<ActionResult<Author>> Get([FromRoute] string name)
+        public async Task<ActionResult<AuthorDTO>> Get([FromRoute] string name)
         {
-            var author = await context.Authors.FirstOrDefaultAsync(x => x.Name == name);
+            var authors = await context.Authors.Where(x => x.Name.Contains(name)).ToListAsync();
 
-            if (author == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(author);
+            return Ok(mapper.Map<List<AuthorDTO>>(authors));
         }
 
         [HttpPost]
-		public async Task<ActionResult> Post([FromBody] AuthorDTO authorDTO)
+		public async Task<ActionResult> Post([FromBody] AuthorCreateDTO authorDTO)
 		{
 			var authorExists = await context.Authors.AnyAsync(x => x.Name == authorDTO.Name);
 
@@ -69,17 +68,15 @@ namespace WebApiAuthors.Controllers
 
 			context.Add(author);
 			await context.SaveChangesAsync();
-			return Ok();
+
+			var returnAuthorDTO = mapper.Map<AuthorDTO>(author);
+
+			return CreatedAtRoute("getAuthor", new { id = author.Id }, returnAuthorDTO);
 		}
 
 		[HttpPut("{id:int}")] //api/authors/{id}
-		public async Task<ActionResult> Put(Author author, int id)
+		public async Task<ActionResult> Put(AuthorCreateDTO authorDTO, int id)
 		{
-			if (author.Id != id)
-			{
-				return BadRequest($"The author with id: {id} doesn't match");
-			}
-
             var exists = await context.Authors.AnyAsync(x => x.Id == id);
 
             if (!exists)
@@ -87,9 +84,12 @@ namespace WebApiAuthors.Controllers
                 return NotFound();
             }
 
+			var author = mapper.Map<Author>(authorDTO);
+			author.Id = id;
+
             context.Update(author);
 			await context.SaveChangesAsync();
-			return Ok();
+			return NoContent();
 		}
 
 		[HttpDelete("{id:int}")]
@@ -104,7 +104,7 @@ namespace WebApiAuthors.Controllers
 
             context.Remove(new Author() { Id = id });
             await context.SaveChangesAsync();
-            return Ok();
+            return NoContent();
         }
 	}
 }

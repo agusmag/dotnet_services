@@ -9,6 +9,11 @@ namespace WebApiAuthors.Models
 	{
 		public int Id { get; set; }
 
-		public string Name { get; set; }
+        [Required(ErrorMessage = "The field {0} is required (custom)")]
+        [StringLength(maximumLength: 250, ErrorMessage = "The field {0} must not be greater than 10 chars")]
+        [FirstLetterUpper]
+        public string Name { get; set; }
+
+        public List<AuthorBook> AuthorsBooks { get; set; }
     }
 }

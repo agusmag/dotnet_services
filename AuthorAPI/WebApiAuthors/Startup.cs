@@ -24,7 +24,8 @@ namespace WebApiAuthors
                 // Add a Global Filter which impacts all the controllers and methods
                 options.Filters.Add(typeof(ExceptionFilter));
             }).AddJsonOptions(x =>
-                x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+                x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles)
+            .AddNewtonsoftJson();
 
             // Configure EF Db Context
             services.AddDbContext<ApplicationDbContext>(options =>
