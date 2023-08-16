@@ -20,6 +20,9 @@ namespace WebApiAuthors
 
         // Table
         public DbSet<Author> Authors { get; set; }
+
+        // Optional (but needed to create queries with Books
+        public DbSet<Book> Books { get; set; }
     }
 }
 

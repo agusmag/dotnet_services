@@ -1,0 +1,6 @@
+Process Initialized
+Process Initialized
+Process execution: 15/08/2023 11:42:56
+Process execution: 15/08/2023 11:43:01
+Process execution: 15/08/2023 11:43:06
+Process execution: 15/08/2023 11:43:11
