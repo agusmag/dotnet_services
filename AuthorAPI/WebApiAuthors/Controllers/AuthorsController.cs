@@ -1,52 +1,29 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using WebApiAuthors.Filters;
+using WebApiAuthors.DTOs;
 using WebApiAuthors.Models;
-using WebApiAuthors.Services;
 
 namespace WebApiAuthors.Controllers
 {
 	[ApiController]
 	[Route("api/authors")]
-    // [Route("api/[controller]")] Placeholder to use the controller name on the endpoint
     public class AuthorsController : ControllerBase
 	{
 		private readonly ApplicationDbContext context;
-        private readonly IService service;
-        private readonly ServiceTransient serviceTransient;
-		private readonly ServiceScoped serviceScoped;
-		private readonly ServiceSingleton serviceSingleton;
+        private readonly IMapper mapper;
 
-        public ILogger<AuthorsController> Logger { get; }
-
-        public AuthorsController(ApplicationDbContext context, IService service, ServiceTransient serviceTransient,
-			ServiceScoped serviceScoped, ServiceSingleton serviceSingleton, ILogger<AuthorsController> logger)
+        public AuthorsController(ApplicationDbContext context, IMapper mapper)
 		{
 			this.context = context;
-            this.service = service;
-            this.serviceTransient = serviceTransient;
-			this.serviceScoped = serviceScoped;
-			this.serviceSingleton = serviceSingleton;
-            Logger = logger;
+            this.mapper = mapper;
         }
 
 		[HttpGet]
-		[Authorize] // Can be at Controller Level
-		// [HttpGet("/authorslist")] Ignore the base route api/authors and respond against /authorslist
 		public async Task<ActionResult<List<Author>>> Get()
 		{
-			Logger.LogInformation("TRACE - Getting the authors");
-			Logger.LogWarning("WARN - Getting the authors");
-
-			return await context.Authors.Include(x => x.Books).ToListAsync();
+			return await context.Authors.ToListAsync();
 		}
-
-        [HttpGet("first")] // api/authors/first?name=Agustin&surname=Magliano
-        public async Task<ActionResult<Author>> GetFirst([FromHeader] int myValue, [FromQuery] string name)
-        {
-			return await context.Authors.Include(x => x.Books).FirstOrDefaultAsync();
-        }
 
         [HttpGet("{id:int}")] // If the :int restriction is not matched, returns 404
 							  // There is no :string restriction
@@ -55,7 +32,7 @@ namespace WebApiAuthors.Controllers
 							  // {var=foo} set the default value of var to "foo"
         public async Task<ActionResult<Author>> Get(int id)
         {
-            var author = await context.Authors.Include(x => x.Books).FirstOrDefaultAsync(x => x.Id == id);
+            var author = await context.Authors.FirstOrDefaultAsync(x => x.Id == id);
 
 			if (author == null)
 			{
@@ -79,14 +56,16 @@ namespace WebApiAuthors.Controllers
         }
 
         [HttpPost]
-		public async Task<ActionResult> Post([FromBody] Author author)
+		public async Task<ActionResult> Post([FromBody] AuthorDTO authorDTO)
 		{
-			var authorExists = await context.Authors.AnyAsync(x => x.Name == author.Name);
+			var authorExists = await context.Authors.AnyAsync(x => x.Name == authorDTO.Name);
 
 			if (authorExists)
 			{
-				return BadRequest($"The author: {author.Name} already exists");
+				return BadRequest($"The author: {authorDTO.Name} already exists");
 			}
+
+			var author = mapper.Map<Author>(authorDTO);
 
 			context.Add(author);
 			await context.SaveChangesAsync();
@@ -127,21 +106,6 @@ namespace WebApiAuthors.Controllers
             await context.SaveChangesAsync();
             return Ok();
         }
-
-		[HttpGet("guid")]
-		[ResponseCache(Duration = 10)] // Response Caching Middleware in seconds
-		[ServiceFilter(typeof(MyActionFilter))] // This is going to call the MyActionFilter methods before and after the Action (request)
-		public ActionResult GetGuids()
-		{
-			return Ok(new {
-				AuthorsController_Transient = serviceTransient.Guid,
-				ServiceA_Transient = service.GetTransient(),
-				AuthorsController_Scoped = serviceScoped.Guid,
-				ServiceA_Scoped = service.GetScoped(),
-				AuthorsController_Singleton = serviceSingleton.Guid,
-				ServiceA_Singleton = service.GetSingleton()
-            });
-		}
 	}
 }
 
